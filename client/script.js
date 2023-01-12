@@ -1,3 +1,5 @@
+// npm run dev
+
 import bot from './assets/bot.svg';
 import user from './assets/user.svg';
 
@@ -13,7 +15,7 @@ function loader(element){
   loadInterval = setInterval(() => {
     element.textContent += '.';
 
-    if(element.textContent === '...'){
+    if(element.textContent === '....'){
       element.textContent = '';
     }
 
@@ -45,7 +47,7 @@ function chatStripe(isAi, value, uniqueId){
     `
       <div class="wrapper ${isAi && 'ai'}">
         <div class="chat">
-          <div classname="profile">
+          <div class="profile">
             <img
               src="${isAi ? bot:user}"
               alt="${isAi ? 'bot':user}"
@@ -61,4 +63,50 @@ function chatStripe(isAi, value, uniqueId){
 const handleSubmit = async(e) => {
   e.preventDefault(); //this will prevent the page to reload everytime 
 
+  const data = new FormData(form);
+
+  //users chtastripe
+  chat_container.innerHTML += chatStripe(false, data.get('prompt'));
+  form.reset();
+
+  //bots chatstripe
+  const uniqueId = generateUniqueId()
+  chat_container.innerHTML += chatStripe(true, " ", uniqueId);
+
+  chat_container.scrollTop = chat_container.scrollHeight; //this will put new mesg in view
+
+  const messageDiv = document.getElementById(uniqueId);
+
+  loader(messageDiv);
+
+  // fetch data from the server -> get bots response
+  const response = await fetch('http://localhost:5000/', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        prompt: data.get('prompt')
+    })
+})
+
+  clearInterval(loadInterval);
+  messageDiv.innerHTML = '';
+  if(response.ok){
+    const data = await response.json();
+    const parsedData = data.bot.trim();
+    typeText(messageDiv, parsedData);
+
+  }else{
+    const err = await response.text();
+    messageDiv.innerHTML = "Something went wrong!";
+    alert(err);
+  }
 }
+
+form.addEventListener('submit', handleSubmit);
+form.addEventListener('keyup', (e) => {
+  if(e.keyCode === 13){ //keycode for enter button is 13
+    handleSubmit(e);
+  }
+})
